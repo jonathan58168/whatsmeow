@@ -1011,15 +1011,18 @@ func getButtonAttributes(msg *waE2E.Message) waBinary.Attrs {
 		return getButtonAttributes(msg.ViewOnceMessageV2.Message)
 	case msg.EphemeralMessage != nil:
 		return getButtonAttributes(msg.EphemeralMessage.Message)
-	case msg.TemplateMessage != nil:
-		return waBinary.Attrs{}
 	case msg.ListMessage != nil:
 		return waBinary.Attrs{
 			"v":    "2",
-			"type": strings.ToLower(waE2E.ListMessage_ListType_name[int32(msg.ListMessage.GetListType())]),
+			"type": "product_list",
+		}
+	case msg.ButtonsMessage != nil:
+		return waBinary.Attrs{
+			"v":    "2",
+			"type": "buttons",
 		}
 	default:
-		return waBinary.Attrs{}
+		return waBinary.Attrs{"v": "2"}
 	}
 }
 
@@ -1363,6 +1366,27 @@ func (cli *Client) encryptMessageForDeviceAndWrap(
 		Attrs:   waBinary.Attrs{"jid": wireIdentity},
 		Content: []waBinary.Node{*node},
 	}, includeDeviceIdentity, nil
+}
+
+// needsBizNode returns true if the message needs to be wrapped in a biz node
+// for better compatibility with WhatsApp's official API
+func needsBizNode(msg *waE2E.Message) bool {
+	if msg == nil {
+		return false
+	}
+	switch {
+	case msg.ViewOnceMessage != nil:
+		return needsBizNode(msg.ViewOnceMessage.Message)
+	case msg.ViewOnceMessageV2 != nil:
+		return needsBizNode(msg.ViewOnceMessageV2.Message)
+	case msg.ViewOnceMessageV2Extension != nil:
+		return needsBizNode(msg.ViewOnceMessageV2Extension.Message)
+	case msg.EphemeralMessage != nil:
+		return needsBizNode(msg.EphemeralMessage.Message)
+	case msg.ButtonsMessage != nil, msg.ListMessage != nil, msg.InteractiveMessage != nil:
+		return true
+	}
+	return false
 }
 
 func copyAttrs(from, to waBinary.Attrs) {
