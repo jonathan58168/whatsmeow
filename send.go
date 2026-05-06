@@ -1144,7 +1144,9 @@ func (cli *Client) getMessageContent(
 		content = append(content, *extraParams.additionalNodes...)
 	}
 
-	if buttonType := getButtonTypeFromMessage(message); buttonType != "" {
+	if nativeFlowNode, ok := getNativeFlowBizNode(message); ok {
+		content = append(content, nativeFlowNode)
+	} else if buttonType := getButtonTypeFromMessage(message); buttonType != "" {
 		content = append(content, waBinary.Node{
 			Tag: "biz",
 			Content: []waBinary.Node{{
@@ -1154,6 +1156,45 @@ func (cli *Client) getMessageContent(
 		})
 	}
 	return content
+}
+
+func getNativeFlowBizNode(msg *waE2E.Message) (waBinary.Node, bool) {
+	if msg == nil {
+		return waBinary.Node{}, false
+	}
+	switch {
+	case msg.ViewOnceMessage != nil:
+		return getNativeFlowBizNode(msg.ViewOnceMessage.Message)
+	case msg.ViewOnceMessageV2 != nil:
+		return getNativeFlowBizNode(msg.ViewOnceMessageV2.Message)
+	case msg.ViewOnceMessageV2Extension != nil:
+		return getNativeFlowBizNode(msg.ViewOnceMessageV2Extension.Message)
+	case msg.EphemeralMessage != nil:
+		return getNativeFlowBizNode(msg.EphemeralMessage.Message)
+	}
+
+	interactive := msg.InteractiveMessage
+	if interactive == nil || interactive.GetNativeFlowMessage() == nil {
+		return waBinary.Node{}, false
+	}
+
+	return waBinary.Node{
+		Tag: "biz",
+		Content: []waBinary.Node{{
+			Tag: "interactive",
+			Attrs: waBinary.Attrs{
+				"type": "native_flow",
+				"v":    "1",
+			},
+			Content: []waBinary.Node{{
+				Tag: "native_flow",
+				Attrs: waBinary.Attrs{
+					"name": "mixed",
+					"v":    "9",
+				},
+			}},
+		}},
+	}, true
 }
 
 func (cli *Client) prepareMessageNode(
