@@ -1011,10 +1011,12 @@ func getButtonAttributes(msg *waE2E.Message) waBinary.Attrs {
 		return getButtonAttributes(msg.ViewOnceMessageV2.Message)
 	case msg.EphemeralMessage != nil:
 		return getButtonAttributes(msg.EphemeralMessage.Message)
+	case msg.TemplateMessage != nil:
+		return waBinary.Attrs{}
 	case msg.ListMessage != nil:
 		return waBinary.Attrs{
 			"v":    "2",
-			"type": "product_list",
+			"type": strings.ToLower(waE2E.ListMessage_ListType_name[int32(msg.ListMessage.GetListType())]),
 		}
 	case msg.ButtonsMessage != nil:
 		return waBinary.Attrs{
@@ -1022,7 +1024,7 @@ func getButtonAttributes(msg *waE2E.Message) waBinary.Attrs {
 			"type": "buttons",
 		}
 	default:
-		return waBinary.Attrs{"v": "2"}
+		return waBinary.Attrs{}
 	}
 }
 
